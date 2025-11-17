@@ -1,0 +1,8 @@
+.DS_Store
+Thumbs.db
+.terraform/
+*.log
+.terraform.lock.hcl
+terraform.tfstate.backup
+terraform.tfstate
+*.txt
