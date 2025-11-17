@@ -64,26 +64,10 @@ resource "aws_security_group" "no-cost-alb-sg" {
   }
 }
 
-/* # Get the latest AMI
-data "aws_ami" "latest_amazon_linux" {
-  most_recent = true
-  owners      = ["amazon"]
-
-  filter {
-    name   = "name"
-    values = ["al2023-ami-*-x86_64"]
-  }
-
-  filter {
-    name   = "virtualization-type"
-    values = ["hvm"]
-  }
-} */
-
 # EC2 Instance
 resource "aws_instance" "no-cost-app" {
   ami           = data.aws_ami.latest_amazon_linux.id
-  instance_type = "t3.micro"
+  instance_type = "t2.micro"
   
   # Place in one of your public subnets
   subnet_id                   = values(aws_subnet.no-cost-public-sub)[0].id
@@ -160,97 +144,3 @@ resource "aws_lb_target_group" "no-cost-http-tg" {
     Name = "no-cost-http-tg"
   }
 }
-
-/* # HTTPS Target Group (optional, empty)
-resource "aws_lb_target_group" "no-cost-https-tg" {
-  name     = "no-cost-https-tg"
-  port     = 443
-  protocol = "HTTPS"
-  vpc_id   = aws_vpc.no-cost-main.id
-
-  health_check {
-    enabled             = true
-    interval            = 30
-    path                = "/"
-    timeout             = 5
-    healthy_threshold   = 3
-    unhealthy_threshold = 3
-    matcher             = "200-299"
-  }
-
-  tags = {
-    Name = "no-cost-https-tg"
-  }
-} */
-
-/* # Listener for HTTP
-resource "aws_lb_listener" "no-cost-http-listener" {
-  load_balancer_arn = aws_lb.app-alb.arn
-  port              = "80"
-  protocol          = "HTTP"
-
-  default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.no-cost-http-tg.arn
-  }
-} */
-
-# Listener for HTTPS (optional)
-/** esource "aws_lb_listener" "no-cost-https-listener" {
-  load_balancer_arn = aws_lb.no-cost-app-alb.arn
-  port              = "443"
-  protocol          = "HTTPS"
-
-  ssl_policy        = "ELBSecurityPolicy-2016-08"
-  #certificate_arn   = var.certificate_arn # Placeholder variable if you add SSL cert later
-
-  default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.no-cost-https-tg.arn
-  }
-} */
-
-/* resource "aws_lb_listener" "no-cost-http-listener" {
-  load_balancer_arn = aws_lb.no-cost-app-alb.arn
-  port              = 80
-  protocol          = "HTTP"
-
-  default_action {
-    type             = "fixed-response"
-    fixed_response {
-      content_type = "text/plain"
-      message_body = "ALB placeholder"
-      status_code  = 200
-    }
-  }
-} */
-
-/* resource "aws_lb_listener" "no-cost-http-listener" {
-  load_balancer_arn = aws_lb.no-cost-app-alb.arn
-  port              = 80
-  protocol          = "HTTP"
-
-  default_action {
-    type = "fixed-response"
-    fixed_response {
-      content_type = "text/plain"
-      message_body = "No-cost placeholder listener"
-      status_code  = "200"
-    }
-  }
-} */
-
-/* resource "aws_lb_listener" "no-cost-http-listener" {
-  load_balancer_arn = aws_lb.no-cost-app-alb.arn
-  port              = 80
-  protocol          = "HTTP"
-
-  default_action {
-    type = "fixed-response"
-    fixed_response {
-      content_type = "text/plain"
-      message_body = "Hello, no-cost listener!"
-      status_code  = "200"
-    }
-  }
-} */
