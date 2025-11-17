@@ -1,3 +1,4 @@
+
 # ALB Security Group
 resource "aws_security_group" "no-cost-alb-sg" {
   name        = "no-cost-alb-sg"
@@ -62,6 +63,7 @@ resource "aws_security_group" "no-cost-ec2-sg" {
     Name = "no-cost-ec2-sg"
   }
 }
+
 
 # Get the latest AMI
 data "aws_ami" "latest_amazon_linux" {
@@ -152,15 +154,4 @@ resource "aws_lb_listener" "no-cost-http-listener" {
     type             = "forward"
     target_group_arn = aws_lb_target_group.no-cost-http-tg.arn
   }
-}
-
-# Output the ALB DNS name to access the application
-output "alb_dns_name" {
-  value       = aws_lb.no-cost-app-alb.dns_name
-  description = "DNS name of the Application Load Balancer"
-}
-
-output "instance_public_ip" {
-  value       = aws_instance.no-cost-app.public_ip
-  description = "Public IP of the EC2 instance"
 }
