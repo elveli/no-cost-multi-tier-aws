@@ -1,90 +1,72 @@
 # no-cost-multi-tier-aws
 No or low cost multi tier AWS infrastructure 
 
-# AWS Multi-Tier Infrastructure (Terraform)
+# no-cost-multi-tier-aws
 
-This Terraform project builds a **multi-tier AWS infrastructure** featuring public and private subnets, an Application Load Balancer (ALB), backend Auto Scaling Group, RDS database, Bastion host, and Secrets Manager integration for secure credential storage.
+Terraform configuration for building a modular, incremental, and cost-optimized multi-tier AWS architecture.  
+Some components are fully implemented, while others are placeholders for future development.
 
----
+This project is designed to evolve toward a complete production-ready multi-tier environment while keeping the base deployment minimal-cost and easy to extend.
 
-## 🏗️ **Architecture Overview**
+## Current Architecture Status
 
-The infrastructure consists of three logical tiers:
+### Implemented
 
-| Tier | Description | AWS Components |
-|------|--------------|----------------|
-| **Public Tier** | Internet-facing layer with ALB and Bastion (Jump Host) | Application Load Balancer, Bastion EC2, Internet Gateway |
-| **Private App Tier** | Scalable backend services | EC2 Auto Scaling Group (private subnets), Step Scaling Policy |
-| **Database Tier** | Secure data layer | Amazon RDS (MySQL), Secrets Manager for DB password |
+- VPC configuration
+- Public and private subnets
+- Route tables, Internet Gateway, NAT Gateway
+- Security groups (ALB, NLB, EC2, Lambda, ECS placeholders)
+- EC2 Launch Template
+- Auto Scaling Group
+- Application Load Balancer (ALB)
+- Lambda function and basic API Gateway integration
+- Centralized locals for naming and tagging
+- Outputs for ALB, VPC, subnets, ASG, and more
 
-Network flow:
-- Internet → **ALB** → **Backend EC2s (private)** → **RDS (private DB subnets)**  
-- SSH Access → **Bastion Host (public subnet)** → **Private EC2s**  
-- Outbound internet from private tier via **NAT Gateway**
+### Not Implemented Yet (Placeholders)
 
----
+- jumpbox.tf (Bastion host)
+- rds.tf (RDS instance)
+- ecs.tf (ECS cluster and services)
 
-## 🧩 **File Structure**
+## Repository Structure
 
 ```
-multi-tier-aws/
-├── provider.tf
-├── main.tf
-├── variables.tf
-├── outputs.tf
-│
-├── vpc.tf
-├── subnets.tf
-├── igw_nat.tf
-├── security-groups.tf
-│
+no-cost-multi-tier-aws/
 ├── alb.tf
-├── asg_backend.tf
-├── bastion.tf
-│
-├── rds.tf
-├── secrets.tf
-├── scaling_policies.tf
-│
-└── README.md
+├── asg.tf
+├── ec2-lt.tf
+├── ecs.tf # placeholder
+├── jumpbox.tf # placeholder
+├── lambda_api.tf
+├── locals.tf
+├── main.tf
+├── nat.tf
+├── nlb.tf 
+├── outputs.tf
+├── rds.tf # placeholder
+├── route-tables.tf
+├── security-groups.tf
+├── subnets.tf
+├── user_data.sh
+├── variables.tf
+└── vpc.tf
+
 ```
 
-### Key Modules
 
-| File | Purpose |
-|------|----------|
-| `vpc.tf` | Defines VPC and core networking |
-| `subnets.tf` | Creates public, private, and DB subnets |
-| `igw_nat.tf` | Configures Internet Gateway, NAT Gateway, and routes |
-| `security-groups.tf` | Security groups for ALB, EC2, RDS, and Bastion |
-| `alb.tf` | Application Load Balancer + target group setup |
-| `asg_backend.tf` | Auto Scaling Group for backend EC2s |
-| `bastion.tf` | Jump host in public subnet for SSH access |
-| `rds.tf` | RDS instance deployment (MySQL) |
-| `secrets.tf` | Secrets Manager for DB credentials |
-| `scaling_policies.tf` | Step scaling policies for backend tier |
+## Design Principles
 
----
+- Low cost by default
+- Clear separation of components into individual .tf files
+- Readable configurations without excessive abstraction
+- Easily extensible as future features are enabled
+- Minimal blast radius for testing individual components
 
-## ⚙️ **Requirements**
+## Requirements
 
-| Tool | Version |
-|------|----------|
-| Terraform | ≥ 1.5.0 |
-| AWS CLI | ≥ 2.0 |
-| AWS Account | With appropriate IAM permissions |
-| Key Pair | Existing SSH key for EC2 access (`key_name` variable) |
-
----
-
-
-
----
-
-## 🚀 **Usage**
-
-### 1. Clone the repository
-```bash
-git clone https://github.com/your-org/multi-tier-aws.git
-cd multi-tier-aws
+- Terraform 1.5 or newer
+- AWS CLI v2
+- IAM permissions to create required AWS resources
+- SSH key pair for future Bastion setup (not yet implemented)
 
