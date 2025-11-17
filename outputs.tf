@@ -32,3 +32,13 @@ output "api_invoke_url" {
 }
 
 
+# Output the ALB DNS name to access the application
+output "alb_dns_name" {
+  value       = aws_lb.no-cost-app-alb.dns_name
+  description = "DNS name of the Application Load Balancer"
+}
+
+output "instance_public_ip" {
+  value       = aws_instance.no-cost-app.public_ip
+  description = "Public IP of the EC2 instance"
+}

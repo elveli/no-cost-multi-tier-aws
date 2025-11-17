@@ -26,6 +26,7 @@ Network flow:
 
 ## 🧩 **File Structure**
 
+```
 multi-tier-aws/
 ├── provider.tf
 ├── main.tf
@@ -46,7 +47,7 @@ multi-tier-aws/
 ├── scaling_policies.tf
 │
 └── README.md
-
+```
 
 ### Key Modules
 
