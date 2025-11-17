@@ -30,7 +30,7 @@ variable "availability_zones" {
 # ALB variables
 variable "alb_name" {
   type        = string
-  default     = "no-cost-app-alb"
+  default     = "no-cost-alb"
   description = "Name of the Application Load Balancer"
 }
 
@@ -46,6 +46,24 @@ variable "certificate_arn" {
   description = "ARN of the ACM certificate for HTTPS listener"
 }
 
+variable "instance_type" {
+  description = "EC2 instance type"
+  type        = string
+  default     = "t2.micro"
+}
+
+variable "min_asg_size" {
+  description = "Min ASG size"
+  type        = number
+  default     = 0
+}
+
+variable "max_asg_size" {
+  description = "Max ASG size"
+  type        = number
+  default     = 1
+}
+
 # Tags
 variable "common_tags" {
   type = map(string)
@@ -55,14 +73,6 @@ variable "common_tags" {
     Project     = "no-cost-multi-tier"
   }
 }
-
-# Map each private subnet to its corresponding public subnet (for NAT)
-/* variable "private_to_public_subnet_map" {
-  default = {
-    "private-subnet-1" = "public-subnet-1"
-    "private-subnet-2" = "public-subnet-2"
-  }
-} */
 
 locals {
   private_to_public_map = {

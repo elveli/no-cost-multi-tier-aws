@@ -43,7 +43,7 @@ resource "aws_ecs_task_definition" "app_task" {
 
   container_definitions = jsonencode([
     {
-      name      = "placeholder-container"
+      name      = "ecs-container"
       image     = "amazonlinux:2"
       essential = true
       portMappings = [
@@ -61,7 +61,7 @@ resource "aws_ecs_task_definition" "app_task" {
 
 # Optional Fargate Service Placeholder (desired_count = 0)
 resource "aws_ecs_service" "app_service" {
-  name            = "no-cost-app-service"
+  name            = "no-cost-app-ecs-service"
   cluster         = aws_ecs_cluster.no-cost-app_cluster.id
   task_definition = aws_ecs_task_definition.app_task.arn
   desired_count   = 0

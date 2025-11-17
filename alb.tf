@@ -84,7 +84,7 @@ data "aws_ami" "latest_amazon_linux" {
 # EC2 Instance with detailed monitoring page
 resource "aws_instance" "no-cost-app" {
   ami           = data.aws_ami.latest_amazon_linux.id
-  instance_type = "t2.micro"
+  instance_type = var.instance_type
   
   # Place in one of your public subnets
   subnet_id                   = values(aws_subnet.no-cost-public-sub)[0].id
@@ -95,13 +95,13 @@ resource "aws_instance" "no-cost-app" {
   user_data_replace_on_change = true
 
   tags = {
-    Name = "no-cost-app-instance"
+    Name = "no-cost-ec2"
   }
 }
 
 # Application Load Balancer
-resource "aws_lb" "no-cost-app-alb" {
-  name               = "no-cost-app-alb"
+resource "aws_lb" "no-cost-alb" {
+  name               = "no-cost-alb"
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.no-cost-alb-sg.id]
@@ -110,7 +110,7 @@ resource "aws_lb" "no-cost-app-alb" {
   enable_deletion_protection = false
 
   tags = {
-    Name = "no-cost-app-alb"
+    Name = "no-cost-alb"
   }
 }
 
@@ -146,7 +146,7 @@ resource "aws_lb_target_group_attachment" "no-cost-tg-attachment" {
 
 # HTTP Listener
 resource "aws_lb_listener" "no-cost-http-listener" {
-  load_balancer_arn = aws_lb.no-cost-app-alb.arn
+  load_balancer_arn = aws_lb.no-cost-alb.arn
   port              = 80
   protocol          = "HTTP"
 

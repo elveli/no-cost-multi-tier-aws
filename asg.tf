@@ -11,15 +11,15 @@ data "aws_ami" "amazon_linux" {
 resource "aws_launch_template" "no-cost-asg-lt" {
   name_prefix   = "asg-lt-"
   image_id      = data.aws_ami.amazon_linux.id
-  instance_type = "t2.micro"
+  instance_type = var.instance_type
 }
 
 
 # Auto Scaling Group (0 instances)
 resource "aws_autoscaling_group" "asg" {
-  name                 = "no-cost-asg-placeholder"
-  max_size             = 1
-  min_size             = 0
+  name                 = "no-cost-asg"
+  max_size             = var.max_asg_size
+  min_size             = var.min_asg_size
   desired_capacity      = 1
   vpc_zone_identifier  = values(aws_subnet.no-cost-private-sub)[*].id
 
