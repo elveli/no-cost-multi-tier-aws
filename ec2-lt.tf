@@ -1,7 +1,27 @@
+data "aws_ami" "latest_amazon_linux" {
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "name"
+    values = ["al2023-ami-*-x86_64"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+
+  filter {
+    name   = "architecture"
+    values = ["x86_64"]
+  }
+}
+
 # EC2 Launch Template
 resource "aws_launch_template" "no-cost-app_lt" {
   name_prefix   = "no-cost-app-lt-"
-  image_id      = "ami-0c55b159cbfafe1f0"  # placeholder AMI, replace with valid AMI
+  image_id      = data.aws_ami.latest_amazon_linux.id
   instance_type = "t3.micro"
 
   network_interfaces {

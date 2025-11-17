@@ -1,3 +1,37 @@
+# EC2 Security Group (allow traffic from ALB)
+resource "aws_security_group" "no-cost-ec2-sg" {
+  name        = "no-cost-ec2-sg"
+  description = "Allow traffic from ALB"
+  vpc_id      = aws_vpc.no-cost-main.id
+
+  ingress {
+    from_port       = 80
+    to_port         = 80
+    protocol        = "tcp"
+    security_groups = [aws_security_group.no-cost-alb-sg.id]
+  }
+
+  # Optional: SSH access (remove if not needed)
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]  # Restrict this to your IP for security
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "no-cost-ec2-sg"
+  }
+}
+
+
 # ALB Security Group
 resource "aws_security_group" "no-cost-alb-sg" {
   name        = "no-cost-alb-sg"
@@ -27,6 +61,66 @@ resource "aws_security_group" "no-cost-alb-sg" {
 
   tags = {
     Name = "no-cost-alb-sg"
+  }
+}
+
+/* # Get the latest AMI
+data "aws_ami" "latest_amazon_linux" {
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "name"
+    values = ["al2023-ami-*-x86_64"]
+  }
+
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+} */
+
+# EC2 Instance
+resource "aws_instance" "no-cost-app" {
+  ami           = data.aws_ami.latest_amazon_linux.id
+  instance_type = "t3.micro"
+  
+  # Place in one of your public subnets
+  subnet_id                   = values(aws_subnet.no-cost-public-sub)[0].id
+  vpc_security_group_ids      = [aws_security_group.no-cost-ec2-sg.id]
+  associate_public_ip_address = true
+
+  # Optional: Simple web server for testing
+  user_data = <<-EOF
+              #!/bin/bash
+              yum update -y
+              yum install -y httpd
+              systemctl start httpd
+              systemctl enable httpd
+              echo "<h1>Hello from $(hostname -f)</h1>" > /var/www/html/index.html
+              EOF
+
+  tags = {
+    Name = "no-cost-app-instance"
+  }
+}
+
+# Register EC2 instance with target group
+resource "aws_lb_target_group_attachment" "no-cost-tg-attachment" {
+  target_group_arn = aws_lb_target_group.no-cost-http-tg.arn
+  target_id        = aws_instance.no-cost-app.id
+  port             = 80
+}
+
+# HTTP Listener (uncomment and fix the reference)
+resource "aws_lb_listener" "no-cost-http-listener" {
+  load_balancer_arn = aws_lb.no-cost-app-alb.arn
+  port              = 80
+  protocol          = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.no-cost-http-tg.arn
   }
 }
 
