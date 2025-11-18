@@ -1,31 +1,30 @@
-
 # ALB Security Group
 resource "aws_security_group" "no-cost-alb-sg" {
   name        = "no-cost-alb-sg"
   description = "Allow HTTP/HTTPS from anywhere"
   vpc_id      = aws_vpc.no-cost-main.id
-
+  
   ingress {
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
+  
   ingress {
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
+  
   egress {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
+  
   tags = {
     Name = "no-cost-alb-sg"
   }
@@ -36,14 +35,14 @@ resource "aws_security_group" "no-cost-ec2-sg" {
   name        = "no-cost-ec2-sg"
   description = "Allow traffic from ALB"
   vpc_id      = aws_vpc.no-cost-main.id
-
+  
   ingress {
     from_port       = 80
     to_port         = 80
     protocol        = "tcp"
     security_groups = [aws_security_group.no-cost-alb-sg.id]
   }
-
+  
   # Optional: SSH access (remove if not needed)
   ingress {
     from_port   = 22
@@ -51,30 +50,29 @@ resource "aws_security_group" "no-cost-ec2-sg" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]  # Restrict this to your IP for security
   }
-
+  
   egress {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
+  
   tags = {
     Name = "no-cost-ec2-sg"
   }
 }
 
-
 # Get the latest AMI
 data "aws_ami" "latest_amazon_linux" {
   most_recent = true
   owners      = ["amazon"]
-
+  
   filter {
     name   = "name"
     values = ["al2023-ami-*-x86_64"]
   }
-
+  
   filter {
     name   = "virtualization-type"
     values = ["hvm"]
@@ -88,39 +86,39 @@ resource "aws_instance" "no-cost-app" {
   
   # Place in one of your public subnets
   subnet_id                   = values(aws_subnet.no-cost-public-sub)[0].id
-  vpc_security_group_ids      = [aws_security_group.no-cost-alb-sg.id]
+  vpc_security_group_ids      = [aws_security_group.no-cost-ec2-sg.id]  # Fixed: use EC2 SG, not ALB SG
   associate_public_ip_address = true
-  user_data_base64 = base64encode(templatefile("${path.module}/user_data.sh", {}))
+  user_data_base64            = base64gzip(templatefile("${path.module}/user_data.sh", {})) 
   
   user_data_replace_on_change = true
-
+  
   tags = {
     Name = "no-cost-ec2"
   }
 }
 
-# Application Load Balancer
+# Application Load Balancer (for EC2)
 resource "aws_lb" "no-cost-alb" {
   name               = "no-cost-alb"
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.no-cost-alb-sg.id]
   subnets            = values(aws_subnet.no-cost-public-sub)[*].id
-
+  
   enable_deletion_protection = false
-
+  
   tags = {
     Name = "no-cost-alb"
   }
 }
 
-# HTTP Target Group (empty)
+# HTTP Target Group (for EC2)
 resource "aws_lb_target_group" "no-cost-http-tg" {
   name     = "no-cost-http-tg"
   port     = 80
   protocol = "HTTP"
   vpc_id   = aws_vpc.no-cost-main.id
-
+  
   health_check {
     enabled             = true
     interval            = 30
@@ -130,12 +128,11 @@ resource "aws_lb_target_group" "no-cost-http-tg" {
     unhealthy_threshold = 3
     matcher             = "200-299"
   }
-
+  
   tags = {
     Name = "no-cost-http-tg"
   }
 }
-
 
 # Register EC2 instance with target group
 resource "aws_lb_target_group_attachment" "no-cost-tg-attachment" {
@@ -144,12 +141,12 @@ resource "aws_lb_target_group_attachment" "no-cost-tg-attachment" {
   port             = 80
 }
 
-# HTTP Listener
+# HTTP Listener (for EC2 ALB)
 resource "aws_lb_listener" "no-cost-http-listener" {
   load_balancer_arn = aws_lb.no-cost-alb.arn
   port              = 80
   protocol          = "HTTP"
-
+  
   default_action {
     type             = "forward"
     target_group_arn = aws_lb_target_group.no-cost-http-tg.arn

@@ -42,3 +42,28 @@ output "instance_public_ip" {
   value       = aws_instance.no-cost-app.public_ip
   description = "Public IP of the EC2 instance"
 }
+
+output "ecs_cluster_name" {
+  description = "Name of the ECS cluster"
+  value       = aws_ecs_cluster.no-cost-app_cluster.name
+}
+
+output "ecs_service_name" {
+  description = "Name of the ECS service"
+  value       = aws_ecs_service.app_service.name
+}
+
+/* output "alb_dns_name" {
+  description = "DNS name of the load balancer"
+  value       = aws_lb.app_alb.dns_name
+} */
+
+output "alb_url" {
+  description = "URL to access the application"
+  value       = "http://${aws_lb.app_alb.dns_name}"
+}
+
+output "cloudwatch_log_group" {
+  description = "CloudWatch log group for ECS tasks"
+  value       = aws_cloudwatch_log_group.ecs_logs.name
+} 

@@ -67,7 +67,7 @@ variable "max_asg_size" {
 variable "desired_ecs_task_count" {
   description = "Desired ECS task count"
   type        = number
-  default     = 1
+  default     = 0
 }
 
 # Tags
