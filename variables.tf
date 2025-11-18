@@ -70,6 +70,12 @@ variable "desired_ecs_task_count" {
   default     = 0
 }
 
+variable "ecs-cw-retention-in-days" {
+  description = "Cloudwatch ECS log retention in days"
+  type = number 
+  default = 1
+}
+
 # Tags
 variable "common_tags" {
   type = map(string)
