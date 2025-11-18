@@ -60,7 +60,8 @@ output "ecs_service_name" {
 
 output "alb_url" {
   description = "URL to access the application"
-  value       = "http://${aws_lb.app_alb.dns_name}"
+  #value       = "http://${aws_lb.app_alb.dns_name}"
+  value       = "http://${aws_lb.no-cost-alb.dns_name}"
 }
 
 output "cloudwatch_log_group" {

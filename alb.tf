@@ -1,4 +1,8 @@
-# ALB Security Group
+# -------------------------------------
+# 1. SECURITY GROUPS
+# -------------------------------------
+
+# ALB Security Group (Shared by both services)
 resource "aws_security_group" "no-cost-alb-sg" {
   name        = "no-cost-alb-sg"
   description = "Allow HTTP/HTTPS from anywhere"
@@ -40,7 +44,8 @@ resource "aws_security_group" "no-cost-ec2-sg" {
     from_port       = 80
     to_port         = 80
     protocol        = "tcp"
-    security_groups = [aws_security_group.no-cost-alb-sg.id]
+    # Allow traffic ONLY from the single ALB's SG
+    security_groups = [aws_security_group.no-cost-alb-sg.id] 
   }
   
   # Optional: SSH access (remove if not needed)
@@ -48,7 +53,7 @@ resource "aws_security_group" "no-cost-ec2-sg" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]  # Restrict this to your IP for security
+    cidr_blocks = ["0.0.0.0/0"] 
   }
   
   egress {
@@ -62,6 +67,10 @@ resource "aws_security_group" "no-cost-ec2-sg" {
     Name = "no-cost-ec2-sg"
   }
 }
+
+# -------------------------------------
+# 2. EC2 INSTANCE
+# -------------------------------------
 
 # Get the latest AMI
 data "aws_ami" "latest_amazon_linux" {
@@ -79,17 +88,14 @@ data "aws_ami" "latest_amazon_linux" {
   }
 }
 
-# EC2 Instance with detailed monitoring page
+# EC2 Instance
 resource "aws_instance" "no-cost-app" {
-  ami           = data.aws_ami.latest_amazon_linux.id
-  instance_type = var.instance_type
-  
-  # Place in one of your public subnets
+  ami                         = data.aws_ami.latest_amazon_linux.id
+  instance_type               = var.instance_type
   subnet_id                   = values(aws_subnet.no-cost-public-sub)[0].id
-  vpc_security_group_ids      = [aws_security_group.no-cost-ec2-sg.id]  # Fixed: use EC2 SG, not ALB SG
+  vpc_security_group_ids      = [aws_security_group.no-cost-ec2-sg.id] 
   associate_public_ip_address = true
   user_data_base64            = base64gzip(templatefile("${path.module}/user_data.sh", {})) 
-  
   user_data_replace_on_change = true
   
   tags = {
@@ -97,7 +103,11 @@ resource "aws_instance" "no-cost-app" {
   }
 }
 
-# Application Load Balancer (for EC2)
+# -------------------------------------
+# 3. ALB, TARGET GROUP, AND LISTENER RULES
+# -------------------------------------
+
+# Application Load Balancer (THE SINGLE ALB)
 resource "aws_lb" "no-cost-alb" {
   name               = "no-cost-alb"
   internal           = false
@@ -112,9 +122,9 @@ resource "aws_lb" "no-cost-alb" {
   }
 }
 
-# HTTP Target Group (for EC2)
-resource "aws_lb_target_group" "no-cost-http-tg" {
-  name     = "no-cost-http-tg"
+# EC2 Target Group (for /legacy/* traffic)
+resource "aws_lb_target_group" "ec2_http_tg" {
+  name     = "ec2-http-tg"
   port     = 80
   protocol = "HTTP"
   vpc_id   = aws_vpc.no-cost-main.id
@@ -130,25 +140,61 @@ resource "aws_lb_target_group" "no-cost-http-tg" {
   }
   
   tags = {
-    Name = "no-cost-http-tg"
+    Name = "ec2-http-tg"
   }
 }
 
-# Register EC2 instance with target group
+# Register EC2 instance with its target group
 resource "aws_lb_target_group_attachment" "no-cost-tg-attachment" {
-  target_group_arn = aws_lb_target_group.no-cost-http-tg.arn
+  target_group_arn = aws_lb_target_group.ec2_http_tg.arn
   target_id        = aws_instance.no-cost-app.id
   port             = 80
 }
 
-# HTTP Listener (for EC2 ALB)
+# HTTP Listener (default action points to ECS TG defined in ecs.tf)
 resource "aws_lb_listener" "no-cost-http-listener" {
   load_balancer_arn = aws_lb.no-cost-alb.arn
   port              = 80
   protocol          = "HTTP"
   
+  # Default Action: FORWARD to the ECS Target Group (defined in ecs.tf)
+  # This makes the ECS service the primary/default application.
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.no-cost-http-tg.arn
+    target_group_arn = aws_lb_target_group.ecs_app_tg.arn
+  }
+}
+
+# Listener Rule 1: Route /legacy/* to the EC2 Target Group
+resource "aws_lb_listener_rule" "ec2_legacy_rule" {
+  listener_arn = aws_lb_listener.no-cost-http-listener.arn
+  priority     = 10 
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.ec2_http_tg.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/legacy/*"]
+    }
+  }
+}
+
+# Listener Rule 2: Route /api/* to the ECS Target Group
+resource "aws_lb_listener_rule" "ecs_api_rule" {
+  listener_arn = aws_lb_listener.no-cost-http-listener.arn
+  priority     = 5 
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.ecs_app_tg.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/api/*"]
+    }
   }
 }
