@@ -34,7 +34,7 @@ output "api_invoke_url" {
 
 # Output the ALB DNS name to access the application
 output "alb_dns_name" {
-  value       = aws_lb.no-cost-alb.dns_name
+  value       = "https://${aws_lb.no-cost-alb.dns_name}"
   description = "DNS name of the Application Load Balancer"
 }
 

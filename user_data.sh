@@ -1,269 +1,477 @@
 #!/bin/bash
+
+#####################################
+# EC2 User Data Script
+# Installs Apache and creates a 
+# detailed system monitoring page
+#####################################
+
+# Update system and install Apache
 yum update -y
 yum install -y httpd
 systemctl start httpd
 systemctl enable httpd
 
-# Create detailed index page - Note: Use EOF without quotes to allow variable expansion
-cat > /var/www/html/index.html <<EOF
+# Create detailed monitoring page
+cat > /var/www/html/index.html <<'EOF'
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>No-Cost App Server</title>
+    <title>Server Monitor Dashboard</title>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            max-width: 1200px;
-            margin: 50px auto;
-            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: #333;
+            min-height: 100vh;
+            padding: 2rem;
         }
+
         .container {
+            max-width: 1400px;
+            margin: 0 auto;
             background: white;
-            padding: 40px;
-            border-radius: 15px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-        }
-        h1 {
-            color: #667eea;
-            border-bottom: 3px solid #667eea;
-            padding-bottom: 10px;
-        }
-        h2 {
-            color: #764ba2;
-            margin-top: 40px;
-            margin-bottom: 20px;
-            font-size: 24px;
-        }
-        .info-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 20px;
-            margin: 30px 0;
-        }
-        .info-card {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 8px;
-            border-left: 4px solid #667eea;
-        }
-        .info-card h3 {
-            margin-top: 0;
-            color: #667eea;
-            font-size: 14px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        .info-card p {
-            margin: 10px 0 0 0;
-            font-size: 16px;
-            color: #333;
-            font-weight: 600;
-            word-break: break-all;
-        }
-        .status {
-            display: inline-block;
-            padding: 8px 16px;
-            background: #10b981;
-            color: white;
             border-radius: 20px;
-            font-weight: 600;
-            margin: 20px 0;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
         }
-        .footer {
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 2px solid #e5e7eb;
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
             text-align: center;
-            color: #6b7280;
-            font-size: 14px;
         }
-        code {
-            background: #f3f4f6;
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-family: monospace;
-            font-size: 14px;
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
         }
-        .network-card {
-            border-left-color: #10b981;
-        }
-        .resource-card {
-            border-left-color: #f59e0b;
-        }
-        .section-badge {
+
+        .status-badge {
             display: inline-block;
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+            padding: 0.5rem 1.5rem;
+            border-radius: 50px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            border: 2px solid #10b981;
+        }
+
+        .content {
+            padding: 2rem;
+        }
+
+        .section {
+            margin-bottom: 3rem;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 3px solid #f1f5f9;
+        }
+
+        .section-header h2 {
+            font-size: 1.5rem;
+            color: #1e293b;
+        }
+
+        .badge {
             background: #667eea;
             color: white;
-            padding: 4px 12px;
+            padding: 0.25rem 0.75rem;
             border-radius: 12px;
-            font-size: 12px;
+            font-size: 0.75rem;
             font-weight: 600;
-            margin-left: 10px;
         }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .card {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 1.5rem;
+            border-left: 4px solid #667eea;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .card.network {
+            border-left-color: #10b981;
+        }
+
+        .card.resource {
+            border-left-color: #f59e0b;
+        }
+
+        .card.cpu {
+            border-left-color: #8b5cf6;
+        }
+
+        .card-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #64748b;
+            margin-bottom: 0.75rem;
+            font-weight: 600;
+        }
+
+        .card-value {
+            font-size: 1.125rem;
+            font-weight: 700;
+            color: #1e293b;
+            font-family: 'Courier New', monospace;
+            word-break: break-all;
+            background: white;
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+        }
+
+        .progress-container {
+            margin-top: 0.75rem;
+        }
+
         .progress-bar {
             width: 100%;
-            height: 20px;
-            background: #e5e7eb;
-            border-radius: 10px;
+            height: 24px;
+            background: #e2e8f0;
+            border-radius: 12px;
             overflow: hidden;
-            margin-top: 10px;
+            position: relative;
         }
+
         .progress-fill {
             height: 100%;
             background: linear-gradient(90deg, #10b981, #059669);
-            transition: width 0.3s ease;
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
-            font-size: 12px;
-            font-weight: 600;
+            font-size: 0.75rem;
+            font-weight: 700;
+            transition: width 0.5s ease;
+            position: relative;
         }
+
         .progress-fill.warning {
             background: linear-gradient(90deg, #f59e0b, #d97706);
         }
+
         .progress-fill.danger {
             background: linear-gradient(90deg, #ef4444, #dc2626);
+        }
+
+        .footer {
+            background: #f8fafc;
+            padding: 2rem;
+            text-align: center;
+            color: #64748b;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .footer p {
+            margin: 0.5rem 0;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+
+            .header h1 {
+                font-size: 1.75rem;
+            }
+
+            .grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🚀 No-Cost App Server</h1>
-        <div class="status">✓ Server Running</div>
-        
-        <h2>📊 Instance Information</h2>
-        <div class="info-grid">
-            <div class="info-card">
-                <h3>Hostname</h3>
-                <p><code>$(hostname -f)</code></p>
-            </div>
-            
-            <div class="info-card">
-                <h3>Instance ID</h3>
-                <p><code>$(ec2-metadata --instance-id | cut -d ' ' -f 2)</code></p>
-            </div>
-            
-            <div class="info-card">
-                <h3>Instance Type</h3>
-                <p><code>$(ec2-metadata --instance-type | cut -d ' ' -f 2)</code></p>
-            </div>
-            
-            <div class="info-card">
-                <h3>Availability Zone</h3>
-                <p><code>$(ec2-metadata --availability-zone | cut -d ' ' -f 2)</code></p>
-            </div>
-            
-            <div class="info-card">
-                <h3>AMI ID</h3>
-                <p><code>$(ec2-metadata --ami-id | cut -d ' ' -f 2)</code></p>
-            </div>
-            
-            <div class="info-card">
-                <h3>Region</h3>
-                <p><code>$(ec2-metadata --availability-zone | cut -d ' ' -f 2 | sed 's/[a-z]$//')</code></p>
-            </div>
+        <!-- Header -->
+        <div class="header">
+            <h1>🚀 Server Monitor Dashboard</h1>
+            <div class="status-badge">✓ System Online</div>
         </div>
-        
-        <h2>💾 System Resources <span class="section-badge">Memory & Storage</span></h2>
-        <div class="info-grid">
-            <div class="info-card resource-card">
-                <h3>Total Memory</h3>
-                <p><code>$(free -h | awk '/^Mem:/ {print \$2}')</code></p>
-            </div>
-            
-            <div class="info-card resource-card">
-                <h3>Available Memory</h3>
-                <p><code>$(free -h | awk '/^Mem:/ {print \$7}')</code></p>
-            </div>
-            
-            <div class="info-card resource-card">
-                <h3>Used Memory</h3>
-                <p><code>$(free -h | awk '/^Mem:/ {print \$3}')</code></p>
-            </div>
-            
-            <div class="info-card resource-card">
-                <h3>Memory Usage %</h3>
-                <p><code>$(free | awk '/^Mem:/ {printf "%.1f%%", \$3/\$2 * 100}')</code></p>
-                <div class="progress-bar">
-                    <div class="progress-fill" style="width: $(free | awk '/^Mem:/ {printf "%.0f", \$3/\$2 * 100}')%">
-                        $(free | awk '/^Mem:/ {printf "%.0f%%", \$3/\$2 * 100}')
+
+        <div class="content">
+            <!-- Instance Information -->
+            <div class="section">
+                <div class="section-header">
+                    <h2>📊 Instance Information</h2>
+                    <span class="badge">AWS EC2</span>
+                </div>
+                <div class="grid">
+                    <div class="card">
+                        <div class="card-title">Hostname</div>
+                        <div class="card-value">$(hostname -f)</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">Instance ID</div>
+                        <div class="card-value">$(ec2-metadata --instance-id | cut -d ' ' -f 2)</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">Instance Type</div>
+                        <div class="card-value">$(ec2-metadata --instance-type | cut -d ' ' -f 2)</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">Availability Zone</div>
+                        <div class="card-value">$(ec2-metadata --availability-zone | cut -d ' ' -f 2)</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">AMI ID</div>
+                        <div class="card-value">$(ec2-metadata --ami-id | cut -d ' ' -f 2)</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">Region</div>
+                        <div class="card-value">$(ec2-metadata --availability-zone | cut -d ' ' -f 2 | sed 's/[a-z]$//')</div>
                     </div>
                 </div>
             </div>
-            
-            <div class="info-card resource-card">
-                <h3>Total Swap</h3>
-                <p><code>$(free -h | awk '/^Swap:/ {print \$2}')</code></p>
+
+            <!-- Memory Resources -->
+            <div class="section">
+                <div class="section-header">
+                    <h2>💾 Memory & Swap</h2>
+                    <span class="badge">Resources</span>
+                </div>
+                <div class="grid">
+                    <div class="card resource">
+                        <div class="card-title">Total Memory</div>
+                        <div class="card-value">$(free -h | awk '/^Mem:/ {print \$2}')</div>
+                    </div>
+                    <div class="card resource">
+                        <div class="card-title">Available Memory</div>
+                        <div class="card-value">$(free -h | awk '/^Mem:/ {print \$7}')</div>
+                    </div>
+                    <div class="card resource">
+                        <div class="card-title">Used Memory</div>
+                        <div class="card-value">$(free -h | awk '/^Mem:/ {print \$3}')</div>
+                    </div>
+                    <div class="card resource">
+                        <div class="card-title">Memory Usage</div>
+                        <div class="card-value">$(free | awk '/^Mem:/ {printf "%.1f%%", \$3/\$2 * 100}')</div>
+                        <div class="progress-container">
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: $(free | awk '/^Mem:/ {printf "%.0f", \$3/\$2 * 100}')%">
+                                    $(free | awk '/^Mem:/ {printf "%.0f%%", \$3/\$2 * 100}')
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card resource">
+                        <div class="card-title">Total Swap</div>
+                        <div class="card-value">$(free -h | awk '/^Swap:/ {print \$2}')</div>
+                    </div>
+                    <div class="card resource">
+                        <div class="card-title">Swap Usage</div>
+                        <div class="card-value">$(free | awk '/^Swap:/ {if (\$2 > 0) printf "%.1f%%", \$3/\$2 * 100; else print "0%"}')</div>
+                        <div class="progress-container">
+                            <div class="progress-bar">
+                                <div class="progress-fill" style="width: $(free | awk '/^Swap:/ {if (\$2 > 0) printf "%.0f", \$3/\$2 * 100; else print "0"}')%">
+                                    $(free | awk '/^Swap:/ {if (\$2 > 0) printf "%.0f%%", \$3/\$2 * 100; else print "0%"}')
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            
-            <div class="info-card resource-card">
-                <h3>Used Swap</h3>
-                <p><code>$(free -h | awk '/^Swap:/ {print \$3}')</code></p>
+
+            <!-- Disk Information -->
+            <div class="section">
+                <div class="section-header">
+                    <h2>💿 Storage</h2>
+                    <span class="badge">Disk</span>
+                </div>
+                <div class="grid">
+                    <div class="card resource">
+                        <div class="card-title">Filesystem</div>
+                        <div class="card-value">$(df -h / | awk 'NR==2 {print \$1}')</div>
+                    </div>
+                    <div class="card resource">
+                        <div class="card-title">Total Size</div>
+                        <div class="card-value">$(df -h / | awk 'NR==2 {print \$2}')</div>
+                    </div>
+                    <div class="card resource">
+                        <div class="card-title">Used Space</div>
+                        <div class="card-value">$(df -h / | awk 'NR==2 {print \$3}')</div>
+                    </div>
+                    <div class="card resource">
+                        <div class="card-title">Available Space</div>
+                        <div class="card-value">$(df -h / | awk 'NR==2 {print \$4}')</div>
+                    </div>
+                    <div class="card resource">
+                        <div class="card-title">Disk Usage</div>
+                        <div class="card-value">$(df -h / | awk 'NR==2 {print \$5}')</div>
+                        <div class="progress-container">
+                            <div class="progress-bar">
+                                <div class="progress-fill $(df / | awk 'NR==2 {usage=\$5+0; if(usage>80) print "danger"; else if(usage>60) print "warning"; else print ""}')" style="width: $(df / | awk 'NR==2 {print \$5}')">
+                                    $(df / | awk 'NR==2 {print \$5}')
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card resource">
+                        <div class="card-title">Filesystem Type</div>
+                        <div class="card-value">$(df -T / | awk 'NR==2 {print \$2}')</div>
+                    </div>
+                </div>
             </div>
-            
-            <div class="info-card resource-card">
-                <h3>Free Swap</h3>
-                <p><code>$(free -h | awk '/^Swap:/ {print \$4}')</code></p>
+
+            <!-- CPU Information -->
+            <div class="section">
+                <div class="section-header">
+                    <h2>⚙️ CPU & Performance</h2>
+                    <span class="badge">Processor</span>
+                </div>
+                <div class="grid">
+                    <div class="card cpu">
+                        <div class="card-title">CPU Model</div>
+                        <div class="card-value">$(lscpu | grep "Model name" | cut -d ':' -f 2 | xargs)</div>
+                    </div>
+                    <div class="card cpu">
+                        <div class="card-title">vCPU Cores</div>
+                        <div class="card-value">$(nproc) cores</div>
+                    </div>
+                    <div class="card cpu">
+                        <div class="card-title">Architecture</div>
+                        <div class="card-value">$(uname -m)</div>
+                    </div>
+                    <div class="card cpu">
+                        <div class="card-title">Load Average</div>
+                        <div class="card-value">$(uptime | awk -F'load average:' '{print \$2}' | xargs)</div>
+                    </div>
+                    <div class="card cpu">
+                        <div class="card-title">System Uptime</div>
+                        <div class="card-value">$(uptime -p | sed 's/up //')</div>
+                    </div>
+                    <div class="card cpu">
+                        <div class="card-title">Running Processes</div>
+                        <div class="card-value">$(ps aux | wc -l) processes</div>
+                    </div>
+                </div>
             </div>
-            
-            <div class="info-card resource-card">
-                <h3>Swap Usage %</h3>
-                <p><code>$(free | awk '/^Swap:/ {if (\$2 > 0) printf "%.1f%%", \$3/\$2 * 100; else print "0%"}')</code></p>
-                <div class="progress-bar">
-                    <div class="progress-fill" style="width: $(free | awk '/^Swap:/ {if (\$2 > 0) printf "%.0f", \$3/\$2 * 100; else print "0"}')%">
-                        $(free | awk '/^Swap:/ {if (\$2 > 0) printf "%.0f%%", \$3/\$2 * 100; else print "0%"}')
+
+            <!-- Network Information -->
+            <div class="section">
+                <div class="section-header">
+                    <h2>🌐 Network Configuration</h2>
+                    <span class="badge">VPC</span>
+                </div>
+                <div class="grid">
+                    <div class="card network">
+                        <div class="card-title">Private IPv4</div>
+                        <div class="card-value">$(ec2-metadata --local-ipv4 | cut -d ' ' -f 2)</div>
+                    </div>
+                    <div class="card network">
+                        <div class="card-title">Public IPv4</div>
+                        <div class="card-value">$(ec2-metadata --public-ipv4 | cut -d ' ' -f 2)</div>
+                    </div>
+                    <div class="card network">
+                        <div class="card-title">VPC ID</div>
+                        <div class="card-value">$(ec2-metadata --vpc-id | cut -d ' ' -f 2)</div>
+                    </div>
+                    <div class="card network">
+                        <div class="card-title">Subnet ID</div>
+                        <div class="card-value">$(ec2-metadata --subnet-id | cut -d ' ' -f 2)</div>
+                    </div>
+                    <div class="card network">
+                        <div class="card-title">MAC Address</div>
+                        <div class="card-value">$(ec2-metadata --mac | cut -d ' ' -f 2)</div>
+                    </div>
+                    <div class="card network">
+                        <div class="card-title">Default Gateway</div>
+                        <div class="card-value">$(ip route | grep default | awk '{print \$3}')</div>
+                    </div>
+                    <div class="card network">
+                        <div class="card-title">DNS Server</div>
+                        <div class="card-value">$(grep nameserver /etc/resolv.conf | awk '{print \$2}' | head -1)</div>
+                    </div>
+                    <div class="card network">
+                        <div class="card-title">Security Group</div>
+                        <div class="card-value">$(ec2-metadata --security-groups | cut -d ' ' -f 2 | head -1)</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Connection Info -->
+            <div class="section">
+                <div class="section-header">
+                    <h2>📡 Connection Details</h2>
+                    <span class="badge">Live</span>
+                </div>
+                <div class="grid">
+                    <div class="card network">
+                        <div class="card-title">Your IP Address</div>
+                        <div class="card-value" id="client-ip">Loading...</div>
+                    </div>
+                    <div class="card network">
+                        <div class="card-title">Protocol</div>
+                        <div class="card-value">HTTP/1.1</div>
+                    </div>
+                    <div class="card network">
+                        <div class="card-title">Server Port</div>
+                        <div class="card-value">80</div>
+                    </div>
+                    <div class="card network">
+                        <div class="card-title">Server Time</div>
+                        <div class="card-value">$(date '+%Y-%m-%d %H:%M:%S %Z')</div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <h2>💿 Disk Information</h2>
-        <div class="info-grid">
-            <div class="info-card resource-card">
-                <h3>Root Filesystem</h3>
-                <p><code>$(df -h / | awk 'NR==2 {print \$1}')</code></p>
-            </div>
-            
-            <div class="info-card resource-card">
-                <h3>Total Disk Size</h3>
-                <p><code>$(df -h / | awk 'NR==2 {print \$2}')</code></p>
-            </div>
-            
-            <div class="info-card resource-card">
-                <h3>Used Disk Space</h3>
-                <p><code>$(df -h / | awk 'NR==2 {print \$3}')</code></p>
-            </div>
-            
-            <div class="info-card resource-card">
-                <h3>Available Disk Space</h3>
-                <p><code>$(df -h / | awk 'NR==2 {print \$4}')</code></p>
-            </div>
-            
-            <div class="info-card resource-card">
-                <h3>Disk Usage %</h3>
-                <p><code>$(df -h / | awk 'NR==2 {print \$5}')</code></p>
-                <div class="progress-bar">
-                    <div class="progress-fill $(df / | awk 'NR==2 {if (\$5+0 > 80) print "danger"; else if (\$5+0 > 60) print "warning"}')" style="width: $(df / | awk 'NR==2 {print \$5}')">
-                        $(df / | awk 'NR==2 {print \$5}')
-                    </div>
-                </div>
-            </div>
-            
-            <div class="info-card resource-card">
-                <h3>Mount Point</h3>
-                <p><code>$(df -h / | awk 'NR==2 {print \$6}')</code></p>
-            </div>
-            
-            <div class="info-card resource-card">
-                <h3>Filesystem Type</h3>
-                <p><code>$(df -T / | awk 'NR==2 {print \$2}')</code></p>
-            </div>
-            
-            <div class="info-card resource-card">
-                <h3>Inodes Total</h3>
-                <p><code>$(df -i / | awk 'NR==2 {print \$2}')</code></p>
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>🏗️ Infrastructure as Code</strong></p>
+            <p>Deployed via Terraform | AWS Application Load Balancer</p>
+            <p>⚡ Powered by Amazon Linux 2023 + Apache HTTP Server</p>
+        </div>
+    </div>
+
+    <script>
+        // Fetch visitor's public IP address
+        fetch('https://api.ipify.org?format=json')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('client-ip').textContent = data.ip;
+            })
+            .catch(error => {
+                document.getElementById('client-ip').textContent = 'Unable to detect';
+                console.error('Error fetching IP:', error);
+            });
+    </script>
+</body>
+</html>
+EOF
+
+# Log completion
+echo "User data script completed successfully" >> /var/log/user-data.log
+date >> /var/log/user-data.log
