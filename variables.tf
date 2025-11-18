@@ -64,6 +64,12 @@ variable "max_asg_size" {
   default     = 1
 }
 
+variable "desired_ecs_task_count" {
+  description = "Desired ECS task count"
+  type        = number
+  default     = 1
+}
+
 # Tags
 variable "common_tags" {
   type = map(string)

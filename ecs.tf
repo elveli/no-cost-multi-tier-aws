@@ -1,6 +1,6 @@
 # ECS Cluster
 resource "aws_ecs_cluster" "no-cost-app_cluster" {
-  name = "no-cost-app-cluster"
+  name = "no-cost-ecs-cluster"
 
   tags = var.common_tags
 }
@@ -61,10 +61,10 @@ resource "aws_ecs_task_definition" "app_task" {
 
 # Optional Fargate Service Placeholder (desired_count = 0)
 resource "aws_ecs_service" "app_service" {
-  name            = "no-cost-app-ecs-service"
+  name            = "no-cost-ecs-service"
   cluster         = aws_ecs_cluster.no-cost-app_cluster.id
   task_definition = aws_ecs_task_definition.app_task.arn
-  desired_count   = 0
+  desired_count   = var.desired_ecs_task_count
   launch_type     = "FARGATE"
 
   network_configuration {
