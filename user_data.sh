@@ -1,19 +1,78 @@
 #!/bin/bash
 
 #####################################
-# EC2 User Data Script
+# EC2 User Data Script Refactored
 # Installs Apache and creates a 
-# detailed system monitoring page
+# dynamic system monitoring page
 #####################################
 
-# Update system and install Apache
+# 1. Update system and install necessary packages
 yum update -y
-yum install -y httpd
+yum install -y httpd net-tools # net-tools for 'ip route' command
 systemctl start httpd
 systemctl enable httpd
 
-# Create detailed monitoring page
-cat > /var/www/html/index.html <<'EOF'
+# 2. Install EC2 Metadata package for Amazon Linux 2023 compatibility
+# ec2-metadata is often not installed by default or requires specific packages/paths.
+# On AL2023, instance metadata can typically be accessed via the instance metadata service (IMDS)
+# or the 'ec2-metadata' command if the 'cloud-utils-ec2-metadata' package is installed.
+# We'll stick to the existing ec2-metadata calls, assuming it's available or linked from the standard path.
+# If these commands fail, manual testing or installing 'cloud-utils-ec2-metadata' may be required.
+
+# 3. Capture Dynamic System Data into Variables
+HOST_NAME=$(hostname -f)
+INST_ID=$(ec2-metadata --instance-id | cut -d ' ' -f 2)
+INST_TYPE=$(ec2-metadata --instance-type | cut -d ' ' -f 2)
+AZ_ZONE=$(ec2-metadata --availability-zone | cut -d ' ' -f 2)
+AMI_ID=$(ec2-metadata --ami-id | cut -d ' ' -f 2)
+REGION=$(echo $AZ_ZONE | sed 's/[a-z]$//')
+
+MEM_TOTAL=$(free -h | awk '/^Mem:/ {print $2}')
+MEM_AVAILABLE=$(free -h | awk '/^Mem:/ {print $7}')
+MEM_USED=$(free -h | awk '/^Mem:/ {print $3}')
+MEM_USAGE_PCT=$(free | awk '/^Mem:/ {printf "%.1f%%", $3/$2 * 100}')
+MEM_USAGE_STYLE=$(free | awk '/^Mem:/ {printf "%.0f", $3/$2 * 100}')
+
+SWAP_TOTAL=$(free -h | awk '/^Swap:/ {print $2}')
+SWAP_USAGE_PCT=$(free | awk '/^Swap:/ {if ($2 > 0) printf "%.1f%%", $3/$2 * 100; else print "0%"}')
+SWAP_USAGE_STYLE=$(free | awk '/^Swap:/ {if ($2 > 0) printf "%.0f", $3/$2 * 100; else print "0"}')
+
+DISK_FS=$(df -h / | awk 'NR==2 {print $1}')
+DISK_SIZE=$(df -h / | awk 'NR==2 {print $2}')
+DISK_USED=$(df -h / | awk 'NR==2 {print $3}')
+DISK_AVAIL=$(df -h / | awk 'NR==2 {print $4}')
+DISK_USAGE_PCT=$(df -h / | awk 'NR==2 {print $5}')
+DISK_TYPE=$(df -T / | awk 'NR==2 {print $2}')
+
+DISK_USAGE_RAW=$(df / | awk 'NR==2 {print $5}' | sed 's/%//')
+DISK_COLOR=""
+if [ $DISK_USAGE_RAW -gt 80 ]; then
+    DISK_COLOR="danger"
+elif [ $DISK_USAGE_RAW -gt 60 ]; then
+    DISK_COLOR="warning"
+fi
+
+CPU_MODEL=$(lscpu | grep "Model name" | cut -d ':' -f 2 | xargs)
+CPU_CORES=$(nproc)
+ARCH=$(uname -m)
+LOAD_AVG=$(uptime | awk -F'load average:' '{print $2}' | xargs)
+UPTIME=$(uptime -p | sed 's/up //')
+PROC_COUNT=$(ps aux | wc -l)
+
+IP_PRIVATE=$(ec2-metadata --local-ipv4 | cut -d ' ' -f 2)
+IP_PUBLIC=$(ec2-metadata --public-ipv4 | cut -d ' ' -f 2)
+VPC_ID=$(ec2-metadata --vpc-id | cut -d ' ' -f 2)
+SUBNET_ID=$(ec2-metadata --subnet-id | cut -d ' ' -f 2)
+MAC_ADDR=$(ec2-metadata --mac | cut -d ' ' -f 2)
+DEFAULT_GW=$(ip route | grep default | awk '{print $3}')
+DNS_SERVER=$(grep nameserver /etc/resolv.conf | awk '{print $2}' | head -1)
+SEC_GROUPS=$(ec2-metadata --security-groups | cut -d ' ' -f 2 | head -1)
+
+SERVER_TIME=$(date '+%Y-%m-%d %H:%M:%S %Z')
+
+
+# 4. Write HTML content, substituting variables
+cat > /var/www/html/index.html <<EOF
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -215,14 +274,12 @@ cat > /var/www/html/index.html <<'EOF'
 </head>
 <body>
     <div class="container">
-        <!-- Header -->
         <div class="header">
             <h1>🚀 Server Monitor Dashboard</h1>
             <div class="status-badge">✓ System Online</div>
         </div>
 
         <div class="content">
-            <!-- Instance Information -->
             <div class="section">
                 <div class="section-header">
                     <h2>📊 Instance Information</h2>
@@ -231,32 +288,31 @@ cat > /var/www/html/index.html <<'EOF'
                 <div class="grid">
                     <div class="card">
                         <div class="card-title">Hostname</div>
-                        <div class="card-value">$(hostname -f)</div>
+                        <div class="card-value">${HOST_NAME}</div>
                     </div>
                     <div class="card">
                         <div class="card-title">Instance ID</div>
-                        <div class="card-value">$(ec2-metadata --instance-id | cut -d ' ' -f 2)</div>
+                        <div class="card-value">${INST_ID}</div>
                     </div>
                     <div class="card">
                         <div class="card-title">Instance Type</div>
-                        <div class="card-value">$(ec2-metadata --instance-type | cut -d ' ' -f 2)</div>
+                        <div class="card-value">${INST_TYPE}</div>
                     </div>
                     <div class="card">
                         <div class="card-title">Availability Zone</div>
-                        <div class="card-value">$(ec2-metadata --availability-zone | cut -d ' ' -f 2)</div>
+                        <div class="card-value">${AZ_ZONE}</div>
                     </div>
                     <div class="card">
                         <div class="card-title">AMI ID</div>
-                        <div class="card-value">$(ec2-metadata --ami-id | cut -d ' ' -f 2)</div>
+                        <div class="card-value">${AMI_ID}</div>
                     </div>
                     <div class="card">
                         <div class="card-title">Region</div>
-                        <div class="card-value">$(ec2-metadata --availability-zone | cut -d ' ' -f 2 | sed 's/[a-z]$//')</div>
+                        <div class="card-value">${REGION}</div>
                     </div>
                 </div>
             </div>
 
-            <!-- Memory Resources -->
             <div class="section">
                 <div class="section-header">
                     <h2>💾 Memory & Swap</h2>
@@ -265,38 +321,38 @@ cat > /var/www/html/index.html <<'EOF'
                 <div class="grid">
                     <div class="card resource">
                         <div class="card-title">Total Memory</div>
-                        <div class="card-value">$(free -h | awk '/^Mem:/ {print \$2}')</div>
+                        <div class="card-value">${MEM_TOTAL}</div>
                     </div>
                     <div class="card resource">
                         <div class="card-title">Available Memory</div>
-                        <div class="card-value">$(free -h | awk '/^Mem:/ {print \$7}')</div>
+                        <div class="card-value">${MEM_AVAILABLE}</div>
                     </div>
                     <div class="card resource">
                         <div class="card-title">Used Memory</div>
-                        <div class="card-value">$(free -h | awk '/^Mem:/ {print \$3}')</div>
+                        <div class="card-value">${MEM_USED}</div>
                     </div>
                     <div class="card resource">
                         <div class="card-title">Memory Usage</div>
-                        <div class="card-value">$(free | awk '/^Mem:/ {printf "%.1f%%", \$3/\$2 * 100}')</div>
+                        <div class="card-value">${MEM_USAGE_PCT}</div>
                         <div class="progress-container">
                             <div class="progress-bar">
-                                <div class="progress-fill" style="width: $(free | awk '/^Mem:/ {printf "%.0f", \$3/\$2 * 100}')%">
-                                    $(free | awk '/^Mem:/ {printf "%.0f%%", \$3/\$2 * 100}')
+                                <div class="progress-fill" style="width: ${MEM_USAGE_STYLE}%">
+                                    ${MEM_USAGE_PCT}
                                 </div>
                             </div>
                         </div>
                     </div>
                     <div class="card resource">
                         <div class="card-title">Total Swap</div>
-                        <div class="card-value">$(free -h | awk '/^Swap:/ {print \$2}')</div>
+                        <div class="card-value">${SWAP_TOTAL}</div>
                     </div>
                     <div class="card resource">
                         <div class="card-title">Swap Usage</div>
-                        <div class="card-value">$(free | awk '/^Swap:/ {if (\$2 > 0) printf "%.1f%%", \$3/\$2 * 100; else print "0%"}')</div>
+                        <div class="card-value">${SWAP_USAGE_PCT}</div>
                         <div class="progress-container">
                             <div class="progress-bar">
-                                <div class="progress-fill" style="width: $(free | awk '/^Swap:/ {if (\$2 > 0) printf "%.0f", \$3/\$2 * 100; else print "0"}')%">
-                                    $(free | awk '/^Swap:/ {if (\$2 > 0) printf "%.0f%%", \$3/\$2 * 100; else print "0%"}')
+                                <div class="progress-fill" style="width: ${SWAP_USAGE_STYLE}%">
+                                    ${SWAP_USAGE_PCT}
                                 </div>
                             </div>
                         </div>
@@ -304,7 +360,6 @@ cat > /var/www/html/index.html <<'EOF'
                 </div>
             </div>
 
-            <!-- Disk Information -->
             <div class="section">
                 <div class="section-header">
                     <h2>💿 Storage</h2>
@@ -313,39 +368,38 @@ cat > /var/www/html/index.html <<'EOF'
                 <div class="grid">
                     <div class="card resource">
                         <div class="card-title">Filesystem</div>
-                        <div class="card-value">$(df -h / | awk 'NR==2 {print \$1}')</div>
+                        <div class="card-value">${DISK_FS}</div>
                     </div>
                     <div class="card resource">
                         <div class="card-title">Total Size</div>
-                        <div class="card-value">$(df -h / | awk 'NR==2 {print \$2}')</div>
+                        <div class="card-value">${DISK_SIZE}</div>
                     </div>
                     <div class="card resource">
                         <div class="card-title">Used Space</div>
-                        <div class="card-value">$(df -h / | awk 'NR==2 {print \$3}')</div>
+                        <div class="card-value">${DISK_USED}</div>
                     </div>
                     <div class="card resource">
                         <div class="card-title">Available Space</div>
-                        <div class="card-value">$(df -h / | awk 'NR==2 {print \$4}')</div>
+                        <div class="card-value">${DISK_AVAIL}</div>
                     </div>
                     <div class="card resource">
                         <div class="card-title">Disk Usage</div>
-                        <div class="card-value">$(df -h / | awk 'NR==2 {print \$5}')</div>
+                        <div class="card-value">${DISK_USAGE_PCT}</div>
                         <div class="progress-container">
                             <div class="progress-bar">
-                                <div class="progress-fill $(df / | awk 'NR==2 {usage=\$5+0; if(usage>80) print "danger"; else if(usage>60) print "warning"; else print ""}')" style="width: $(df / | awk 'NR==2 {print \$5}')">
-                                    $(df / | awk 'NR==2 {print \$5}')
+                                <div class="progress-fill ${DISK_COLOR}" style="width: ${DISK_USAGE_PCT}">
+                                    ${DISK_USAGE_PCT}
                                 </div>
                             </div>
                         </div>
                     </div>
                     <div class="card resource">
                         <div class="card-title">Filesystem Type</div>
-                        <div class="card-value">$(df -T / | awk 'NR==2 {print \$2}')</div>
+                        <div class="card-value">${DISK_TYPE}</div>
                     </div>
                 </div>
             </div>
 
-            <!-- CPU Information -->
             <div class="section">
                 <div class="section-header">
                     <h2>⚙️ CPU & Performance</h2>
@@ -354,32 +408,31 @@ cat > /var/www/html/index.html <<'EOF'
                 <div class="grid">
                     <div class="card cpu">
                         <div class="card-title">CPU Model</div>
-                        <div class="card-value">$(lscpu | grep "Model name" | cut -d ':' -f 2 | xargs)</div>
+                        <div class="card-value">${CPU_MODEL}</div>
                     </div>
                     <div class="card cpu">
                         <div class="card-title">vCPU Cores</div>
-                        <div class="card-value">$(nproc) cores</div>
+                        <div class="card-value">${CPU_CORES} cores</div>
                     </div>
                     <div class="card cpu">
                         <div class="card-title">Architecture</div>
-                        <div class="card-value">$(uname -m)</div>
+                        <div class="card-value">${ARCH}</div>
                     </div>
                     <div class="card cpu">
                         <div class="card-title">Load Average</div>
-                        <div class="card-value">$(uptime | awk -F'load average:' '{print \$2}' | xargs)</div>
+                        <div class="card-value">${LOAD_AVG}</div>
                     </div>
                     <div class="card cpu">
                         <div class="card-title">System Uptime</div>
-                        <div class="card-value">$(uptime -p | sed 's/up //')</div>
+                        <div class="card-value">${UPTIME}</div>
                     </div>
                     <div class="card cpu">
                         <div class="card-title">Running Processes</div>
-                        <div class="card-value">$(ps aux | wc -l) processes</div>
+                        <div class="card-value">${PROC_COUNT} processes</div>
                     </div>
                 </div>
             </div>
 
-            <!-- Network Information -->
             <div class="section">
                 <div class="section-header">
                     <h2>🌐 Network Configuration</h2>
@@ -388,40 +441,39 @@ cat > /var/www/html/index.html <<'EOF'
                 <div class="grid">
                     <div class="card network">
                         <div class="card-title">Private IPv4</div>
-                        <div class="card-value">$(ec2-metadata --local-ipv4 | cut -d ' ' -f 2)</div>
+                        <div class="card-value">${IP_PRIVATE}</div>
                     </div>
                     <div class="card network">
                         <div class="card-title">Public IPv4</div>
-                        <div class="card-value">$(ec2-metadata --public-ipv4 | cut -d ' ' -f 2)</div>
+                        <div class="card-value">${IP_PUBLIC}</div>
                     </div>
                     <div class="card network">
                         <div class="card-title">VPC ID</div>
-                        <div class="card-value">$(ec2-metadata --vpc-id | cut -d ' ' -f 2)</div>
+                        <div class="card-value">${VPC_ID}</div>
                     </div>
                     <div class="card network">
                         <div class="card-title">Subnet ID</div>
-                        <div class="card-value">$(ec2-metadata --subnet-id | cut -d ' ' -f 2)</div>
+                        <div class="card-value">${SUBNET_ID}</div>
                     </div>
                     <div class="card network">
                         <div class="card-title">MAC Address</div>
-                        <div class="card-value">$(ec2-metadata --mac | cut -d ' ' -f 2)</div>
+                        <div class="card-value">${MAC_ADDR}</div>
                     </div>
                     <div class="card network">
                         <div class="card-title">Default Gateway</div>
-                        <div class="card-value">$(ip route | grep default | awk '{print \$3}')</div>
+                        <div class="card-value">${DEFAULT_GW}</div>
                     </div>
                     <div class="card network">
                         <div class="card-title">DNS Server</div>
-                        <div class="card-value">$(grep nameserver /etc/resolv.conf | awk '{print \$2}' | head -1)</div>
+                        <div class="card-value">${DNS_SERVER}</div>
                     </div>
                     <div class="card network">
                         <div class="card-title">Security Group</div>
-                        <div class="card-value">$(ec2-metadata --security-groups | cut -d ' ' -f 2 | head -1)</div>
+                        <div class="card-value">${SEC_GROUPS}</div>
                     </div>
                 </div>
             </div>
 
-            <!-- Connection Info -->
             <div class="section">
                 <div class="section-header">
                     <h2>📡 Connection Details</h2>
@@ -442,13 +494,12 @@ cat > /var/www/html/index.html <<'EOF'
                     </div>
                     <div class="card network">
                         <div class="card-title">Server Time</div>
-                        <div class="card-value">$(date '+%Y-%m-%d %H:%M:%S %Z')</div>
+                        <div class="card-value">${SERVER_TIME}</div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Footer -->
         <div class="footer">
             <p><strong>🏗️ Infrastructure as Code</strong></p>
             <p>Deployed via Terraform | AWS Application Load Balancer</p>
