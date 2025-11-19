@@ -97,7 +97,7 @@ resource "aws_iam_role_policy" "ecs_exec_policy" {
 # 3. SECURITY GROUP (ECS Task)
 # -------------------------------------
 
-# ECS Tasks Security Group 
+/* # ECS Tasks Security Group 
 resource "aws_security_group" "ecs_tasks_sg" {
   name        = "no-cost-ecs-tasks-sg"
   description = "Security group for ECS tasks"
@@ -123,13 +123,13 @@ resource "aws_security_group" "ecs_tasks_sg" {
   tags = merge(var.common_tags, {
     Name = "no-cost-ecs-tasks-sg"
   })
-}
+} */
 
 # -------------------------------------
 # 4. TARGET GROUP (for ECS only)
 # -------------------------------------
 
-# ECS Target Group (This will be the default TG for the ALB)
+/* # ECS Target Group (This will be the default TG for the ALB)
 resource "aws_lb_target_group" "ecs_app_tg" {
   name        = "ecs-app-tg"
   port        = 80
@@ -150,7 +150,7 @@ resource "aws_lb_target_group" "ecs_app_tg" {
   deregistration_delay = 30
 
   tags = var.common_tags
-}
+} */
 
 # -------------------------------------
 # 5. ECS Task Definition and Service
@@ -192,6 +192,69 @@ resource "aws_ecs_task_definition" "app_task" {
   ])
 
   tags = var.common_tags
+}
+
+# ALB Security Group
+resource "aws_security_group" "shared_alb_sg" {
+  name        = "no-cost-shared-alb-sg"
+  description = "Allow HTTP/HTTPS from anywhere"
+  vpc_id      = aws_vpc.no-cost-main.id
+  
+  ingress {
+    description = "HTTP from anywhere"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  
+  ingress {
+    description = "HTTPS from anywhere"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  
+  egress {
+    description = "All outbound traffic"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  
+  tags = merge(var.common_tags, {
+    Name = "no-cost-shared-alb-sg"
+  })
+}
+
+
+# ECS Tasks Security Group
+resource "aws_security_group" "ecs_tasks_sg" {
+  name        = "no-cost-ecs-tasks-sg"
+  description = "Allow traffic from ALB to ECS tasks"
+  vpc_id      = aws_vpc.no-cost-main.id
+  
+  ingress {
+    description     = "HTTP from ALB"
+    from_port       = 80
+    to_port         = 80
+    protocol        = "tcp"
+    security_groups = [aws_security_group.shared_alb_sg.id]
+  }
+  
+  egress {
+    description = "All outbound traffic"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  
+  tags = merge(var.common_tags, {
+    Name = "no-cost-ecs-tasks-sg"
+  })
 }
 
 resource "aws_ecs_service" "app_service" {

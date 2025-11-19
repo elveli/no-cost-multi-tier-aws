@@ -43,17 +43,17 @@ output "alb_dns_name" {
   description = "Public IP of the EC2 instance"
 } */
 
-# With this:
+/* # With this:
 output "ec2_asg_instances" {
   description = "EC2 instances in Auto Scaling Group"
   value       = aws_autoscaling_group.ec2_asg.name
-}
+} */
 
-output "ec2_asg_current_size" {
+/* output "ec2_asg_current_size" {
   description = "Current number of EC2 instances"
   value       = aws_autoscaling_group.ec2_asg.desired_capacity
-}
-
+} */
+/* 
 # To get instance IPs, use:
 output "ec2_instance_ids" {
   description = "IDs of EC2 instances in ASG"
@@ -64,8 +64,27 @@ output "ec2_instance_private_ips" {
   description = "Private IPs of EC2 instances"
   value = data.aws_instances.ec2_instances.private_ips
 }
+ */
 
+/* output "alb_dns_name" {
+  description = "ALB DNS name"
+  value       = aws_lb.no-cost-alb.dns_name
+} */
 
+output "alb_url" {
+  description = "ALB URL"
+  value       = "http://${aws_lb.no-cost-alb.dns_name}"
+}
+
+output "ec2_endpoint" {
+  description = "EC2 endpoint via ALB"
+  value       = "http://${aws_lb.no-cost-alb.dns_name}/ec2"
+}
+
+output "ecs_endpoint" {
+  description = "ECS endpoint via ALB"
+  value       = "http://${aws_lb.no-cost-alb.dns_name}/ecs"
+}
 
 output "ecs_cluster_name" {
   description = "Name of the ECS cluster"
