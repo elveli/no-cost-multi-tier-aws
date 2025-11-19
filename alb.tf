@@ -88,20 +88,21 @@ data "aws_ami" "latest_amazon_linux" {
   }
 }
 
-# EC2 Instance
+/* # EC2 Instance
 resource "aws_instance" "no-cost-app" {
   ami                         = data.aws_ami.latest_amazon_linux.id
   instance_type               = var.instance_type
   subnet_id                   = values(aws_subnet.no-cost-public-sub)[0].id
   vpc_security_group_ids      = [aws_security_group.no-cost-ec2-sg.id] 
   associate_public_ip_address = true
-  user_data_base64            = base64gzip(templatefile("${path.module}/user_data.sh", {})) 
+  user_data_base64 = base64gzip(templatefile("${path.module}/user_data.sh", {}))
+ 
   user_data_replace_on_change = true
   
   tags = {
     Name = "no-cost-ec2"
   }
-}
+} */
 
 # -------------------------------------
 # 3. ALB, TARGET GROUP, AND LISTENER RULES
@@ -144,12 +145,12 @@ resource "aws_lb_target_group" "ec2_http_tg" {
   }
 }
 
-# Register EC2 instance with its target group
+/* # Register EC2 instance with its target group
 resource "aws_lb_target_group_attachment" "no-cost-tg-attachment" {
   target_group_arn = aws_lb_target_group.ec2_http_tg.arn
   target_id        = aws_instance.no-cost-app.id
   port             = 80
-}
+} */
 
 # HTTP Listener (default action points to ECS TG defined in ecs.tf)
 resource "aws_lb_listener" "no-cost-http-listener" {

@@ -220,7 +220,7 @@ resource "aws_ecs_service" "app_service" {
   # NOTE: You will need to uncomment/define 'aws_lb_listener.no-cost-http-listener' from alb.tf
   # depends_on = [aws_lb_listener.no-cost-http-listener] 
   
-  lifecycle {
+/*   lifecycle {
     ignore_changes = [desired_count]
-  }
+  } */
 }

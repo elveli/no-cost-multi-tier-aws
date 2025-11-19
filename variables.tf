@@ -76,6 +76,24 @@ variable "ecs-cw-retention-in-days" {
   default = 1
 }
 
+variable "ec2_min_capacity" {
+  description = "Minimum number of EC2 instances"
+  type        = number
+  default     = 1
+}
+
+variable "ec2_max_capacity" {
+  description = "Maximum number of EC2 instances"
+  type        = number
+  default     = 4
+}
+
+variable "ec2_desired_capacity" {
+  description = "Desired number of EC2 instances"
+  type        = number
+  default     = 1
+}
+
 # Tags
 variable "common_tags" {
   type = map(string)

@@ -38,10 +38,34 @@ output "alb_dns_name" {
   description = "DNS name of the Application Load Balancer"
 }
 
-output "instance_public_ip" {
+/* output "instance_public_ip" {
   value       = aws_instance.no-cost-app.public_ip
   description = "Public IP of the EC2 instance"
+} */
+
+# With this:
+output "ec2_asg_instances" {
+  description = "EC2 instances in Auto Scaling Group"
+  value       = aws_autoscaling_group.ec2_asg.name
 }
+
+output "ec2_asg_current_size" {
+  description = "Current number of EC2 instances"
+  value       = aws_autoscaling_group.ec2_asg.desired_capacity
+}
+
+# To get instance IPs, use:
+output "ec2_instance_ids" {
+  description = "IDs of EC2 instances in ASG"
+  value = data.aws_instances.ec2_instances.ids
+}
+
+output "ec2_instance_private_ips" {
+  description = "Private IPs of EC2 instances"
+  value = data.aws_instances.ec2_instances.private_ips
+}
+
+
 
 output "ecs_cluster_name" {
   description = "Name of the ECS cluster"
@@ -58,6 +82,32 @@ output "ecs_service_name" {
   value       = aws_lb.app_alb.dns_name
 } */
 
+/* 
+output "ec2_asg_name" {
+  description = "Name of EC2 Auto Scaling Group"
+  value       = aws_autoscaling_group.ec2_asg.name
+}
+
+output "ec2_asg_min_size" {
+  description = "Minimum number of EC2 instances"
+  value       = aws_autoscaling_group.ec2_asg.min_size
+}
+
+output "ec2_asg_max_size" {
+  description = "Maximum number of EC2 instances"
+  value       = aws_autoscaling_group.ec2_asg.max_size
+}
+
+output "ec2_asg_desired_capacity" {
+  description = "Desired number of EC2 instances"
+  value       = aws_autoscaling_group.ec2_asg.desired_capacity
+}
+
+output "ec2_launch_template_id" {
+  description = "Launch template ID for EC2 ASG"
+  value       = aws_launch_template.ec2_lt.id
+}
+
 output "alb_url" {
   description = "URL to access the application"
   #value       = "http://${aws_lb.app_alb.dns_name}"
@@ -67,4 +117,4 @@ output "alb_url" {
 output "cloudwatch_log_group" {
   description = "CloudWatch log group for ECS tasks"
   value       = aws_cloudwatch_log_group.ecs_logs.name
-} 
+}  */
