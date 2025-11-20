@@ -1,18 +1,24 @@
 # -----------------------------
-# Generate Lambda zip from embedded Python
+# Generate Lambda zip from embedded Python (proper API Gateway response)
 # -----------------------------
 data "archive_file" "lambda_zip" {
   type        = "zip"
-  output_path = "${path.module}/no-cost-no-cost-dummy_lambda.zip"
+  output_path = "${path.module}/no-cost-dummy_lambda.zip"
 
   source {
     filename = "lambda_function.py"
     content  = <<-EOF
+      import json
+
       def handler(event, context):
-          return "Hello from no-cost Lambda!"
+          return {
+              "statusCode": 200,
+              "body": json.dumps("Hello from no-cost Lambda!")
+          }
     EOF
   }
 }
+
 
 # -----------------------------
 # IAM Role for Lambda Execution
@@ -87,8 +93,19 @@ resource "aws_api_gateway_integration" "lambda_integration" {
   http_method             = aws_api_gateway_method.get_method.http_method
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
-  uri                     = aws_lambda_function.no-cost-dummy_lambda.invoke_arn
+  #uri                     = aws_lambda_function.no-cost-dummy_lambda.invoke_arn
+  uri = "arn:aws:apigateway:${var.aws_region}:lambda:path/2015-03-31/functions/${aws_lambda_function.no-cost-dummy_lambda.arn}/invocations"
+
 }
+
+resource "aws_lambda_permission" "api_gw_invoke" {
+  statement_id  = "AllowExecutionFromAPIGateway"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.no-cost-dummy_lambda.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_api_gateway_rest_api.no-cost-dummy_api.execution_arn}/*/*"
+}
+
 
 # Deploy API (deployment itself)
 resource "aws_api_gateway_deployment" "api_deploy" {

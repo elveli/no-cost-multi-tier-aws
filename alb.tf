@@ -79,7 +79,8 @@ resource "aws_lb" "no-cost-alb" {
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.no-cost-alb-sg.id]
-  subnets            = values(aws_subnet.no-cost-public-sub)[*].id
+  # xxx subnets            = values(aws_subnet.no-cost-public-sub)[*].id
+  subnets            = [for s in values(aws_subnet.no-cost-public-sub) : s.id]
   
   enable_deletion_protection = false
   
@@ -154,7 +155,8 @@ resource "aws_lb_listener" "no-cost-http-listener" {
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.ecs_app_tg.arn
+    #target_group_arn = aws_lb_target_group.ecs_app_tg.arn xxx
+    target_group_arn = aws_lb_target_group.ec2_http_tg.arn
   }
 }
 
